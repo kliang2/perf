@@ -1,3 +1,5 @@
+/* Copyright (C) 2016, Intel Corporation */
+
 #include "uncore.h"
 
 static struct intel_uncore_type *empty_uncore[] = { NULL, };
@@ -677,7 +679,8 @@ static int uncore_pmu_event_init(struct perf_event *event)
 		/* fixed counters have event field hardcoded to zero */
 		hwc->config = 0ULL;
 	} else {
-		hwc->config = event->attr.config & pmu->type->event_mask;
+		hwc->config = event->attr.config &
+			      (pmu->type->event_mask | ((unsigned long)pmu->type->event_mask_ext << 32));
 		if (pmu->type->ops->hw_config) {
 			ret = pmu->type->ops->hw_config(box, event);
 			if (ret)
@@ -1039,6 +1042,9 @@ static int __init uncore_pci_init(void)
 	case 94: /* SkyLake */
 		ret = skl_uncore_pci_init();
 		break;
+	case 85:
+		ret = _uncore_pci_init();
+		break;
 	default:
 		return -ENODEV;
 	}
@@ -1339,6 +1345,9 @@ static int __init uncore_cpu_init(void)
 		break;
 	case 87: /* Knights Landing */
 		knl_uncore_cpu_init();
+		break;
+	case 85:
+		_uncore_cpu_init();
 		break;
 	default:
 		return -ENODEV;
