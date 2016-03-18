@@ -333,6 +333,7 @@ static atomic_t perf_sched_count;
 
 static DEFINE_PER_CPU(atomic_t, perf_cgroup_events);
 static DEFINE_PER_CPU(int, perf_sched_cb_usages);
+static DEFINE_PER_CPU(struct pmu_event_list, pmu_sb_events[sb_nr]);
 
 static atomic_t nr_mmap_events __read_mostly;
 static atomic_t nr_comm_events __read_mostly;
@@ -3545,6 +3546,37 @@ static void free_event_rcu(struct rcu_head *head)
 static void ring_buffer_attach(struct perf_event *event,
 			       struct ring_buffer *rb);
 
+static void detach_sb_event(struct perf_event *event, enum event_sb_channel sb)
+{
+	struct pmu_event_list *pel = per_cpu_ptr(&pmu_sb_events[sb], event->cpu);
+
+	raw_spin_lock(&pel->lock);
+	list_del_rcu(&event->sb_list[sb]);
+	raw_spin_unlock(&pel->lock);
+}
+
+static void unaccount_pmu_sb_event(struct perf_event *event)
+{
+	if (event->parent)
+		return;
+
+	if (event->attach_state & PERF_ATTACH_TASK)
+		return;
+
+	if (IS_SB_MMAP(event->attr))
+		detach_sb_event(event, sb_mmap);
+
+	if (IS_SB_COMM(event->attr))
+		detach_sb_event(event, sb_comm);
+
+	if (event->attr.task)
+		detach_sb_event(event, sb_task);
+
+	if (event->attr.context_switch)
+		detach_sb_event(event, sb_switch);
+
+}
+
 static void unaccount_event_cpu(struct perf_event *event, int cpu)
 {
 	if (event->parent)
@@ -3608,6 +3640,8 @@ static void unaccount_event(struct perf_event *event)
 	}
 
 	unaccount_event_cpu(event, event->cpu);
+
+	unaccount_pmu_sb_event(event);
 }
 
 static void perf_sched_delayed(struct work_struct *work)
@@ -5697,13 +5731,41 @@ perf_event_aux_task_ctx(perf_event_aux_output_cb output, void *data,
 	rcu_read_unlock();
 }
 
+static void perf_event_sb_iterate(enum event_sb_channel sb,
+				  perf_event_aux_output_cb output,
+				  void *data)
+{
+	struct pmu_event_list *pel = this_cpu_ptr(&pmu_sb_events[sb]);
+	struct perf_event *event;
+
+	list_for_each_entry_rcu(event, &pel->list, sb_list[sb]) {
+		if (event->state < PERF_EVENT_STATE_INACTIVE)
+			continue;
+		if (!event_filter_match(event))
+			continue;
+		output(event, data);
+	}
+}
+
+static void perf_event_sb_mask(unsigned int sb_mask,
+			       perf_event_aux_output_cb output,
+			       void *data)
+{
+	int sb;
+
+	for (sb = 0; sb < sb_nr; sb++) {
+		if (!(sb_mask & (1 << sb)))
+			continue;
+		perf_event_sb_iterate(sb, output, data);
+	}
+}
+
 static void
 perf_event_aux(perf_event_aux_output_cb output, void *data,
-	       struct perf_event_context *task_ctx)
+	       struct perf_event_context *task_ctx,
+	       unsigned int sb_mask)
 {
-	struct perf_cpu_context *cpuctx;
 	struct perf_event_context *ctx;
-	struct pmu *pmu;
 	int ctxn;
 
 	/*
@@ -5718,21 +5780,17 @@ perf_event_aux(perf_event_aux_output_cb output, void *data,
 	}
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(pmu, &pmus, entry) {
-		cpuctx = get_cpu_ptr(pmu->pmu_cpu_context);
-		if (cpuctx->unique_pmu != pmu)
-			goto next;
-		perf_event_aux_ctx(&cpuctx->ctx, output, data);
-		ctxn = pmu->task_ctx_nr;
-		if (ctxn < 0)
-			goto next;
+	preempt_disable();
+	perf_event_sb_mask(sb_mask, output, data);
+
+	for_each_task_context_nr(ctxn) {
 		ctx = rcu_dereference(current->perf_event_ctxp[ctxn]);
 		if (ctx)
 			perf_event_aux_ctx(ctx, output, data);
-next:
-		put_cpu_ptr(pmu->pmu_cpu_context);
 	}
+	preempt_enable();
 	rcu_read_unlock();
+
 }
 
 /*
@@ -5829,7 +5887,8 @@ static void perf_event_task(struct task_struct *task,
 
 	perf_event_aux(perf_event_task_output,
 		       &task_event,
-		       task_ctx);
+		       task_ctx,
+		       (1 << sb_task) | (1 << sb_mmap) | (1 << sb_comm));
 }
 
 void perf_event_fork(struct task_struct *task)
@@ -5908,7 +5967,8 @@ static void perf_event_comm_event(struct perf_comm_event *comm_event)
 
 	perf_event_aux(perf_event_comm_output,
 		       comm_event,
-		       NULL);
+		       NULL,
+		       1 << sb_comm);
 }
 
 void perf_event_comm(struct task_struct *task, bool exec)
@@ -6139,7 +6199,8 @@ got_name:
 
 	perf_event_aux(perf_event_mmap_output,
 		       mmap_event,
-		       NULL);
+		       NULL,
+		       1 << sb_mmap);
 
 	kfree(buf);
 }
@@ -6327,7 +6388,8 @@ static void perf_event_switch(struct task_struct *task,
 
 	perf_event_aux(perf_event_switch_output,
 		       &switch_event,
-		       NULL);
+		       NULL,
+		       1 << sb_switch);
 }
 
 /*
@@ -7818,6 +7880,37 @@ unlock:
 	return pmu;
 }
 
+static void attach_sb_event(struct perf_event *event, enum event_sb_channel sb)
+{
+	struct pmu_event_list *pel = per_cpu_ptr(&pmu_sb_events[sb], event->cpu);
+
+	raw_spin_lock(&pel->lock);
+	list_add_rcu(&event->sb_list[sb], &pel->list);
+	raw_spin_unlock(&pel->lock);
+}
+
+static void account_pmu_sb_event(struct perf_event *event)
+{
+	if (event->parent)
+		return;
+
+	if (event->attach_state & PERF_ATTACH_TASK)
+		return;
+
+	if (IS_SB_MMAP(event->attr))
+		attach_sb_event(event, sb_mmap);
+
+	if (IS_SB_COMM(event->attr))
+		attach_sb_event(event, sb_comm);
+
+	if (event->attr.task)
+		attach_sb_event(event, sb_task);
+
+	if (event->attr.context_switch)
+		attach_sb_event(event, sb_switch);
+
+}
+
 static void account_event_cpu(struct perf_event *event, int cpu)
 {
 	if (event->parent)
@@ -7898,6 +7991,8 @@ static void account_event(struct perf_event *event)
 enabled:
 
 	account_event_cpu(event, event->cpu);
+
+	account_pmu_sb_event(event);
 }
 
 /*
@@ -7915,6 +8010,7 @@ perf_event_alloc(struct perf_event_attr *attr, int cpu,
 	struct perf_event *event;
 	struct hw_perf_event *hwc;
 	long err = -EINVAL;
+	int i;
 
 	if ((unsigned)cpu >= nr_cpu_ids) {
 		if (!task || cpu != -1)
@@ -7942,6 +8038,8 @@ perf_event_alloc(struct perf_event_attr *attr, int cpu,
 	INIT_LIST_HEAD(&event->active_entry);
 	INIT_HLIST_NODE(&event->hlist_entry);
 
+	for (i = 0; i < sb_nr; i++)
+		INIT_LIST_HEAD(&event->sb_list[i]);
 
 	init_waitqueue_head(&event->waitq);
 	init_irq_work(&event->pending, perf_pending_event);
@@ -9337,11 +9435,14 @@ static void __init perf_event_init_all_cpus(void)
 {
 	struct swevent_htable *swhash;
 	int cpu;
+	int i;
 
 	for_each_possible_cpu(cpu) {
 		swhash = &per_cpu(swevent_htable, cpu);
 		mutex_init(&swhash->hlist_mutex);
 		INIT_LIST_HEAD(&per_cpu(active_ctx_list, cpu));
+		for (i = 0; i < sb_nr; i++)
+			INIT_LIST_HEAD(&per_cpu(pmu_sb_events[i].list, cpu));
 	}
 }
 

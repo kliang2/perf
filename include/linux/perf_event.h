@@ -432,6 +432,31 @@ struct swevent_hlist {
 struct perf_cgroup;
 struct ring_buffer;
 
+struct pmu_event_list {
+	raw_spinlock_t		lock;
+	struct list_head	list;
+};
+
+/*
+ * {mmap,mmap_data,mmap2} -> mmap
+ * {comm,comm_exec} -> comm
+ * task
+ * context_switch
+ */
+enum event_sb_channel {
+	sb_mmap = 0,
+	sb_comm,
+	sb_task,
+	sb_switch,
+
+	sb_nr,
+};
+
+#define IS_SB_MMAP(attr)		\
+	(attr.mmap || attr.mmap_data || attr.mmap2)
+#define IS_SB_COMM(attr)		\
+	(attr.comm || attr.comm_exec)
+
 /**
  * struct perf_event - performance event kernel representation:
  */
@@ -584,6 +609,7 @@ struct perf_event {
 	int				cgrp_defer_enabled;
 #endif
 
+	struct list_head		sb_list[sb_nr];
 #endif /* CONFIG_PERF_EVENTS */
 };
 
