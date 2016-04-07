@@ -3744,6 +3744,7 @@ static DEFINE_PCI_DEVICE_TABLE(_uncore_pci_ids) = {
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x204C),
 		.driver_data = UNCORE_PCI_DEV_FULL_DATA(18, 4, _PCI_UNCORE_M3UPI, 2),
 	},
+	{ /* end: all zeroes */ }
 };
 
 
