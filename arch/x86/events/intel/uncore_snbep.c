@@ -3570,6 +3570,7 @@ static void _upi_uncore_pci_init_box(struct intel_uncore_box *box)
 {
 	struct pci_dev *pdev = box->pci_dev;
 
+	__set_bit(UNCORE_BOX_FLAG_CTL_OFFS8, &box->flags);
 	pci_write_config_dword(pdev, _UPI_PCI_PMON_BOX_CTL, IVBEP_PMON_BOX_CTL_INT);
 }
 
@@ -3584,7 +3585,7 @@ static struct intel_uncore_ops _upi_uncore_pci_ops = {
 
 static struct intel_uncore_type _uncore_upi = {
 	.name		= "upi",
-	.num_counters   = 5,
+	.num_counters   = 4,
 	.num_boxes	= 3,
 	.perf_ctr_bits	= 48,
 	.perf_ctr	= _UPI_PCI_PMON_CTR0,
@@ -3596,6 +3597,23 @@ static struct intel_uncore_type _uncore_upi = {
 	.format_group	= &_upi_uncore_format_group,
 };
 
+static void _m2m_uncore_pci_init_box(struct intel_uncore_box *box)
+{
+	struct pci_dev *pdev = box->pci_dev;
+
+	__set_bit(UNCORE_BOX_FLAG_CTL_OFFS8, &box->flags);
+	pci_write_config_dword(pdev, _M2M_PCI_PMON_BOX_CTL, IVBEP_PMON_BOX_CTL_INT);
+}
+
+static struct intel_uncore_ops _m2m_uncore_pci_ops = {
+	.init_box	= _m2m_uncore_pci_init_box,
+	.disable_box	= snbep_uncore_pci_disable_box,
+	.enable_box	= snbep_uncore_pci_enable_box,
+	.disable_event	= snbep_uncore_pci_disable_event,
+	.enable_event	= snbep_uncore_pci_enable_event,
+	.read_counter	= snbep_uncore_pci_read_counter,
+};
+
 static struct intel_uncore_type _uncore_m2m = {
 	.name		= "m2m",
 	.num_counters   = 4,
@@ -3605,7 +3623,7 @@ static struct intel_uncore_type _uncore_m2m = {
 	.event_ctl	= _M2M_PCI_PMON_CTL0,
 	.event_mask	= SNBEP_PMON_RAW_EVENT_MASK,
 	.box_ctl	= _M2M_PCI_PMON_BOX_CTL,
-	.ops		= &ivbep_uncore_pci_ops,
+	.ops		= &_m2m_uncore_pci_ops,
 	.format_group	= &_uncore_format_group,
 };
 
