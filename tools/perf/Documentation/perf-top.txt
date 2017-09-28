@@ -240,6 +240,9 @@ Default is to monitor all CPUS.
 --force::
 	Don't do ownership validation.
 
+--num-thread-synthesize::
+	The number of threads to run event synthesize.
+	By default, the number of threads equals to the online CPU number.
 
 INTERACTIVE PROMPTING KEYS
 --------------------------
