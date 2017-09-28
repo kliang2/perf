@@ -863,11 +863,20 @@ next_event:
 
 static void perf_top__mmap_read(struct perf_top *top)
 {
+	unsigned long long s, e;
 	int i;
 
 	perf_evlist__toggle_bkw_mmap(top->evlist, BKW_MMAP_DATA_PENDING);
+	s = rdclock();
 	for (i = 0; i < top->evlist->nr_mmaps; i++)
 		perf_top__mmap_read_idx(top, i);
+	e = rdclock();
+	if ((e - s) > (unsigned long long)(top->delay_secs * NSEC_PER_SEC)) {
+		ui__warning("Too slow to read ring buffer.\n"
+			    "Please try increasing the period (-c) or\n"
+			    "decreasing the freq (-F) or\n"
+			    "limiting the number of CPUs");
+	}
 	perf_evlist__toggle_bkw_mmap(top->evlist, BKW_MMAP_EMPTY);
 	perf_evlist__toggle_bkw_mmap(top->evlist, BKW_MMAP_RUNNING);
 }
