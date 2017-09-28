@@ -276,16 +276,6 @@ static void perf_top__print_sym_table(struct perf_top *top)
 
 	printf("%-*.*s\n", win_width, win_width, graph_dotted_line);
 
-	if (hists->stats.nr_lost_warned !=
-	    hists->stats.nr_events[PERF_RECORD_LOST]) {
-		hists->stats.nr_lost_warned =
-			      hists->stats.nr_events[PERF_RECORD_LOST];
-		color_fprintf(stdout, PERF_COLOR_RED,
-			      "WARNING: LOST %d chunks, Check IO/CPU overload",
-			      hists->stats.nr_lost_warned);
-		++printed;
-	}
-
 	if (top->sym_filter_entry) {
 		perf_top__show_details(top);
 		return;
@@ -802,6 +792,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 
 static void perf_top__mmap_read_idx(struct perf_top *top, int idx)
 {
+	struct perf_mmap *md = &top->evlist->backward_mmap[idx];
 	struct perf_sample sample;
 	struct perf_evsel *evsel;
 	struct perf_session *session = top->session;
@@ -809,7 +800,9 @@ static void perf_top__mmap_read_idx(struct perf_top *top, int idx)
 	struct machine *machine;
 	int ret;
 
-	while ((event = perf_evlist__mmap_read(top->evlist, idx)) != NULL) {
+	perf_mmap__read_catchup(md);
+
+	while ((event = perf_mmap__read_backward(md)) != NULL) {
 		ret = perf_evlist__parse_sample(top->evlist, event, &sample);
 		if (ret) {
 			pr_err("Can't parse sample, err = %d\n", ret);
@@ -872,8 +865,11 @@ static void perf_top__mmap_read(struct perf_top *top)
 {
 	int i;
 
+	perf_evlist__toggle_bkw_mmap(top->evlist, BKW_MMAP_DATA_PENDING);
 	for (i = 0; i < top->evlist->nr_mmaps; i++)
 		perf_top__mmap_read_idx(top, i);
+	perf_evlist__toggle_bkw_mmap(top->evlist, BKW_MMAP_EMPTY);
+	perf_evlist__toggle_bkw_mmap(top->evlist, BKW_MMAP_RUNNING);
 }
 
 static int perf_top__start_counters(struct perf_top *top)
@@ -902,7 +898,7 @@ try_again:
 		}
 	}
 
-	if (perf_evlist__mmap(evlist, opts->mmap_pages, false) < 0) {
+	if (perf_evlist__mmap(evlist, opts->mmap_pages, opts->overwrite) < 0) {
 		ui__error("Failed to mmap with %d (%s)\n",
 			    errno, str_error_r(errno, msg, sizeof(msg)));
 		goto out_err;
@@ -1117,6 +1113,7 @@ int cmd_top(int argc, const char **argv)
 				.uses_mmap   = true,
 			},
 			.proc_map_timeout    = 500,
+			.overwrite	= 1,
 		},
 		.max_stack	     = sysctl_perf_event_max_stack,
 		.sym_pcnt_filter     = 5,

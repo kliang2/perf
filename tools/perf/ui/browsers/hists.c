@@ -712,8 +712,13 @@ int hist_browser__run(struct hist_browser *browser, const char *help)
 			nr_entries = hist_browser__nr_entries(browser);
 			ui_browser__update_nr_entries(&browser->b, nr_entries);
 
-			if (browser->hists->stats.nr_lost_warned !=
-			    browser->hists->stats.nr_events[PERF_RECORD_LOST]) {
+			/*
+			 * Don't print lost events warning for perf top,
+			 * because it is backward overwrite mode.
+			 * Perf top is the only tool which has hbt timer.
+			 */
+			if ((browser->hists->stats.nr_lost_warned !=
+			    browser->hists->stats.nr_events[PERF_RECORD_LOST]) && !hbt) {
 				browser->hists->stats.nr_lost_warned =
 					browser->hists->stats.nr_events[PERF_RECORD_LOST];
 				ui_browser__warn_lost_events(&browser->b);
@@ -3358,7 +3363,8 @@ static int perf_evsel_menu__run(struct perf_evsel_menu *menu,
 		case K_TIMER:
 			hbt->timer(hbt->arg);
 
-			if (!menu->lost_events_warned && menu->lost_events) {
+			if (!menu->lost_events_warned && menu->lost_events &&
+			    !hbt) {
 				ui_browser__warn_lost_events(&menu->b);
 				menu->lost_events_warned = true;
 			}
