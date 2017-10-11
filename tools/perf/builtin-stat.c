@@ -293,7 +293,8 @@ static inline int nsec_counter(struct perf_evsel *evsel)
 static int process_synthesized_event(struct perf_tool *tool __maybe_unused,
 				     union perf_event *event,
 				     struct perf_sample *sample __maybe_unused,
-				     struct machine *machine __maybe_unused)
+				     struct machine *machine __maybe_unused,
+				     struct thread_info *thread __maybe_unused)
 {
 	if (perf_data_file__write(&perf_stat.file, event, event->header.size) < 0) {
 		pr_err("failed to write perf data, error: %m\n");

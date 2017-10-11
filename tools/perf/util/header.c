@@ -2986,7 +2986,7 @@ int perf_event__synthesize_attr(struct perf_tool *tool,
 	ev->attr.header.size = (u16)size;
 
 	if (ev->attr.header.size == size)
-		err = process(tool, ev, NULL, NULL);
+		err = process(tool, ev, NULL, NULL, NULL);
 	else
 		err = -E2BIG;
 
@@ -3040,7 +3040,7 @@ int perf_event__synthesize_features(struct perf_tool *tool,
 		fe->header.type = PERF_RECORD_HEADER_FEATURE;
 		fe->header.size = ff.offset;
 
-		ret = process(tool, ff.buf, NULL, NULL);
+		ret = process(tool, ff.buf, NULL, NULL, NULL);
 		if (ret) {
 			free(ff.buf);
 			return ret;
@@ -3124,7 +3124,7 @@ perf_event__synthesize_event_update_unit(struct perf_tool *tool,
 		return -ENOMEM;
 
 	strncpy(ev->data, evsel->unit, size);
-	err = process(tool, (union perf_event *)ev, NULL, NULL);
+	err = process(tool, (union perf_event *)ev, NULL, NULL, NULL);
 	free(ev);
 	return err;
 }
@@ -3144,7 +3144,7 @@ perf_event__synthesize_event_update_scale(struct perf_tool *tool,
 
 	ev_data = (struct event_update_event_scale *) ev->data;
 	ev_data->scale = evsel->scale;
-	err = process(tool, (union perf_event*) ev, NULL, NULL);
+	err = process(tool, (union perf_event *) ev, NULL, NULL, NULL);
 	free(ev);
 	return err;
 }
@@ -3163,7 +3163,7 @@ perf_event__synthesize_event_update_name(struct perf_tool *tool,
 		return -ENOMEM;
 
 	strncpy(ev->data, evsel->name, len);
-	err = process(tool, (union perf_event*) ev, NULL, NULL);
+	err = process(tool, (union perf_event *) ev, NULL, NULL, NULL);
 	free(ev);
 	return err;
 }
@@ -3194,7 +3194,7 @@ perf_event__synthesize_event_update_cpus(struct perf_tool *tool,
 				 evsel->own_cpus,
 				 type, max);
 
-	err = process(tool, (union perf_event*) ev, NULL, NULL);
+	err = process(tool, (union perf_event *) ev, NULL, NULL, NULL);
 	free(ev);
 	return err;
 }
@@ -3377,7 +3377,7 @@ int perf_event__synthesize_tracing_data(struct perf_tool *tool, int fd,
 	ev.tracing_data.header.size = sizeof(ev.tracing_data);
 	ev.tracing_data.size = aligned_size;
 
-	process(tool, &ev, NULL, NULL);
+	process(tool, &ev, NULL, NULL, NULL);
 
 	/*
 	 * The put function will copy all the tracing data
@@ -3455,7 +3455,7 @@ int perf_event__synthesize_build_id(struct perf_tool *tool,
 	ev.build_id.header.size = sizeof(ev.build_id) + len;
 	memcpy(&ev.build_id.filename, pos->long_name, pos->long_name_len);
 
-	err = process(tool, &ev, NULL, machine);
+	err = process(tool, &ev, NULL, machine, NULL);
 
 	return err;
 }

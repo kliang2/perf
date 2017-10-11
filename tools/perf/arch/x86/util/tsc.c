@@ -76,5 +76,5 @@ int perf_event__synth_time_conv(const struct perf_event_mmap_page *pc,
 	event.time_conv.time_shift = tc.time_shift;
 	event.time_conv.time_zero  = tc.time_zero;
 
-	return process(tool, &event, NULL, machine);
+	return process(tool, &event, NULL, machine, NULL);
 }

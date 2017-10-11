@@ -123,7 +123,8 @@ static int record__write(struct record *rec, void *bf, size_t size)
 static int process_synthesized_event(struct perf_tool *tool,
 				     union perf_event *event,
 				     struct perf_sample *sample __maybe_unused,
-				     struct machine *machine __maybe_unused)
+				     struct machine *machine __maybe_unused,
+				     struct thread_info *thread __maybe_unused)
 {
 	struct record *rec = container_of(tool, struct record, tool);
 	return record__write(rec, event, event->header.size);

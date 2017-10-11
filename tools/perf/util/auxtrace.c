@@ -887,7 +887,7 @@ int perf_event__synthesize_auxtrace_info(struct auxtrace_record *itr,
 	if (err)
 		goto out_free;
 
-	err = process(tool, ev, NULL, NULL);
+	err = process(tool, ev, NULL, NULL, NULL);
 out_free:
 	free(ev);
 	return err;

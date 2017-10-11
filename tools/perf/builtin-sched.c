@@ -1432,7 +1432,8 @@ again:
 static int process_sched_wakeup_event(struct perf_tool *tool,
 				      struct perf_evsel *evsel,
 				      struct perf_sample *sample,
-				      struct machine *machine)
+				      struct machine *machine,
+				      struct thread_info *thread __maybe_unused)
 {
 	struct perf_sched *sched = container_of(tool, struct perf_sched, tool);
 
@@ -1603,7 +1604,8 @@ out:
 static int process_sched_switch_event(struct perf_tool *tool,
 				      struct perf_evsel *evsel,
 				      struct perf_sample *sample,
-				      struct machine *machine)
+				      struct machine *machine,
+				      struct thread_info *thread __maybe_unused)
 {
 	struct perf_sched *sched = container_of(tool, struct perf_sched, tool);
 	int this_cpu = sample->cpu, err = 0;
@@ -1629,7 +1631,8 @@ static int process_sched_switch_event(struct perf_tool *tool,
 static int process_sched_runtime_event(struct perf_tool *tool,
 				       struct perf_evsel *evsel,
 				       struct perf_sample *sample,
-				       struct machine *machine)
+				       struct machine *machine,
+				       struct thread_info *thread __maybe_unused)
 {
 	struct perf_sched *sched = container_of(tool, struct perf_sched, tool);
 
@@ -1659,7 +1662,8 @@ static int perf_sched__process_fork_event(struct perf_tool *tool,
 static int process_sched_migrate_task_event(struct perf_tool *tool,
 					    struct perf_evsel *evsel,
 					    struct perf_sample *sample,
-					    struct machine *machine)
+					    struct machine *machine,
+					    struct thread_info *thread __maybe_unused)
 {
 	struct perf_sched *sched = container_of(tool, struct perf_sched, tool);
 

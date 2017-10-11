@@ -755,7 +755,8 @@ struct intel_bts_synth {
 static int intel_bts_event_synth(struct perf_tool *tool,
 				 union perf_event *event,
 				 struct perf_sample *sample __maybe_unused,
-				 struct machine *machine __maybe_unused)
+				 struct machine *machine __maybe_unused,
+				 struct thread_info *thread __maybe_unused)
 {
 	struct intel_bts_synth *intel_bts_synth =
 			container_of(tool, struct intel_bts_synth, dummy_tool);

@@ -659,10 +659,15 @@ struct cpu_map;
 struct perf_stat_config;
 struct perf_counts_values;
 
+struct thread_info {
+	int	idx;
+};
+
 typedef int (*perf_event__handler_t)(struct perf_tool *tool,
 				     union perf_event *event,
 				     struct perf_sample *sample,
-				     struct machine *machine);
+				     struct machine *machine,
+				     struct thread_info *thread);
 
 int perf_event__synthesize_thread_map(struct perf_tool *tool,
 				      struct thread_map *threads,
@@ -751,7 +756,8 @@ int perf_event__process_exit(struct perf_tool *tool,
 int perf_event__process(struct perf_tool *tool,
 			union perf_event *event,
 			struct perf_sample *sample,
-			struct machine *machine);
+			struct machine *machine,
+			struct thread_info *thread __maybe_unused);
 
 struct addr_location;
 

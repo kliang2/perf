@@ -22,7 +22,8 @@ static bool has_term(struct stat_config_event *config,
 static int process_stat_config_event(struct perf_tool *tool __maybe_unused,
 				     union perf_event *event,
 				     struct perf_sample *sample __maybe_unused,
-				     struct machine *machine __maybe_unused)
+				     struct machine *machine __maybe_unused,
+				     struct thread_info *thread __maybe_unused)
 {
 	struct stat_config_event *config = &event->stat_config;
 	struct perf_stat_config stat_config;
@@ -62,7 +63,8 @@ int test__synthesize_stat_config(struct test *test __maybe_unused, int subtest _
 static int process_stat_event(struct perf_tool *tool __maybe_unused,
 			      union perf_event *event,
 			      struct perf_sample *sample __maybe_unused,
-			      struct machine *machine __maybe_unused)
+			      struct machine *machine __maybe_unused,
+			      struct thread_info *thread __maybe_unused)
 {
 	struct stat_event *st = &event->stat;
 
@@ -92,7 +94,8 @@ int test__synthesize_stat(struct test *test __maybe_unused, int subtest __maybe_
 static int process_stat_round_event(struct perf_tool *tool __maybe_unused,
 				    union perf_event *event,
 				    struct perf_sample *sample __maybe_unused,
-				    struct machine *machine __maybe_unused)
+				    struct machine *machine __maybe_unused,
+				    struct thread_info *thread __maybe_unused)
 {
 	struct stat_round_event *stat_round = &event->stat_round;
 

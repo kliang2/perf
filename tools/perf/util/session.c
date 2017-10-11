@@ -2211,7 +2211,7 @@ int perf_event__synthesize_id_index(struct perf_tool *tool,
 			struct perf_sample_id *sid;
 
 			if (i >= n) {
-				err = process(tool, ev, NULL, machine);
+				err = process(tool, ev, NULL, machine, NULL);
 				if (err)
 					goto out_err;
 				nr -= n;
@@ -2238,7 +2238,7 @@ int perf_event__synthesize_id_index(struct perf_tool *tool,
 	ev->id_index.header.size = sz;
 	ev->id_index.nr = nr;
 
-	err = process(tool, ev, NULL, machine);
+	err = process(tool, ev, NULL, machine, NULL);
 out_err:
 	free(ev);
 

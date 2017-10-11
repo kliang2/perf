@@ -1091,7 +1091,8 @@ static int trace__process_event(struct trace *trace, struct machine *machine,
 static int trace__tool_process(struct perf_tool *tool,
 			       union perf_event *event,
 			       struct perf_sample *sample,
-			       struct machine *machine)
+			       struct machine *machine,
+			       struct thread_info *thread __maybe_unused)
 {
 	struct trace *trace = container_of(tool, struct trace, tool);
 	return trace__process_event(trace, machine, event, sample);

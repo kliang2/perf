@@ -2121,7 +2121,8 @@ struct intel_pt_synth {
 static int intel_pt_event_synth(struct perf_tool *tool,
 				union perf_event *event,
 				struct perf_sample *sample __maybe_unused,
-				struct machine *machine __maybe_unused)
+				struct machine *machine __maybe_unused,
+				struct thread_info *thread __maybe_unused)
 {
 	struct intel_pt_synth *intel_pt_synth =
 			container_of(tool, struct intel_pt_synth, dummy_tool);

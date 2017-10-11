@@ -102,7 +102,7 @@ static int perf_tool__process_synth_event(struct perf_tool *tool,
 	.cpumode   = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK,
 	};
 
-	return process(tool, event, &synth_sample, machine);
+	return process(tool, event, &synth_sample, machine, NULL);
 };
 
 /*
@@ -976,7 +976,7 @@ int perf_event__synthesize_thread_map2(struct perf_tool *tool,
 		strncpy((char *) &entry->comm, comm, sizeof(entry->comm));
 	}
 
-	err = process(tool, event, NULL, machine);
+	err = process(tool, event, NULL, machine, NULL);
 
 	free(event);
 	return err;
@@ -1107,7 +1107,7 @@ int perf_event__synthesize_cpu_map(struct perf_tool *tool,
 	if (!event)
 		return -ENOMEM;
 
-	err = process(tool, (union perf_event *) event, NULL, machine);
+	err = process(tool, (union perf_event *) event, NULL, machine, NULL);
 
 	free(event);
 	return err;
@@ -1145,7 +1145,7 @@ int perf_event__synthesize_stat_config(struct perf_tool *tool,
 		  "stat config terms unbalanced\n");
 #undef ADD
 
-	err = process(tool, (union perf_event *) event, NULL, machine);
+	err = process(tool, (union perf_event *) event, NULL, machine, NULL);
 
 	free(event);
 	return err;
@@ -1170,7 +1170,7 @@ int perf_event__synthesize_stat(struct perf_tool *tool,
 	event.ena       = count->ena;
 	event.run       = count->run;
 
-	return process(tool, (union perf_event *) &event, NULL, machine);
+	return process(tool, (union perf_event *) &event, NULL, machine, NULL);
 }
 
 int perf_event__synthesize_stat_round(struct perf_tool *tool,
@@ -1187,7 +1187,7 @@ int perf_event__synthesize_stat_round(struct perf_tool *tool,
 	event.time = evtime;
 	event.type = type;
 
-	return process(tool, (union perf_event *) &event, NULL, machine);
+	return process(tool, (union perf_event *) &event, NULL, machine, NULL);
 }
 
 void perf_event__read_stat_config(struct perf_stat_config *config,
@@ -1476,7 +1476,8 @@ size_t perf_event__fprintf(union perf_event *event, FILE *fp)
 int perf_event__process(struct perf_tool *tool __maybe_unused,
 			union perf_event *event,
 			struct perf_sample *sample,
-			struct machine *machine)
+			struct machine *machine,
+			struct thread_info *thread __maybe_unused)
 {
 	return machine__process_event(machine, event, sample);
 }

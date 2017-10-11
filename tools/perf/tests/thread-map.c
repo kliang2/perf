@@ -52,7 +52,8 @@ int test__thread_map(struct test *test __maybe_unused, int subtest __maybe_unuse
 static int process_event(struct perf_tool *tool __maybe_unused,
 			 union perf_event *event,
 			 struct perf_sample *sample __maybe_unused,
-			 struct machine *machine __maybe_unused)
+			 struct machine *machine __maybe_unused,
+			 struct thread_info *thread __maybe_unused)
 {
 	struct thread_map_event *map = &event->thread_map;
 	struct thread_map *threads;

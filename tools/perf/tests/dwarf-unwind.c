@@ -22,7 +22,8 @@
 static int mmap_handler(struct perf_tool *tool __maybe_unused,
 			union perf_event *event,
 			struct perf_sample *sample,
-			struct machine *machine)
+			struct machine *machine,
+			struct thread_info *thread __maybe_unused)
 {
 	return machine__process_mmap2_event(machine, event, sample);
 }

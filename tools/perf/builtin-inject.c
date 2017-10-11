@@ -191,6 +191,15 @@ static int perf_event__repipe(struct perf_tool *tool,
 	return perf_event__repipe_synth(tool, event);
 }
 
+static int perf_event__repipe_threads(struct perf_tool *tool,
+				      union perf_event *event,
+				      struct perf_sample *sample,
+				      struct machine *machine,
+				      struct thread_info *thread __maybe_unused)
+{
+	return perf_event__repipe(tool, event, sample, machine);
+}
+
 static int perf_event__drop(struct perf_tool *tool __maybe_unused,
 			    union perf_event *event __maybe_unused,
 			    struct perf_sample *sample __maybe_unused,
@@ -413,7 +422,8 @@ static int dso__inject_build_id(struct dso *dso, struct perf_tool *tool,
 	if (dso->kernel)
 		misc = PERF_RECORD_MISC_KERNEL;
 
-	err = perf_event__synthesize_build_id(tool, dso, misc, perf_event__repipe,
+	err = perf_event__synthesize_build_id(tool, dso, misc,
+					      perf_event__repipe_threads,
 					      machine);
 	if (err) {
 		pr_err("Can't synthesize build_id event for %s\n", dso->long_name);

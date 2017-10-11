@@ -11,7 +11,8 @@ struct machine;
 static int process_event_mask(struct perf_tool *tool __maybe_unused,
 			 union perf_event *event,
 			 struct perf_sample *sample __maybe_unused,
-			 struct machine *machine __maybe_unused)
+			 struct machine *machine __maybe_unused,
+			 struct thread_info *thread __maybe_unused)
 {
 	struct cpu_map_event *map_event = &event->cpu_map;
 	struct cpu_map_mask *mask;
@@ -45,7 +46,8 @@ static int process_event_mask(struct perf_tool *tool __maybe_unused,
 static int process_event_cpus(struct perf_tool *tool __maybe_unused,
 			 union perf_event *event,
 			 struct perf_sample *sample __maybe_unused,
-			 struct machine *machine __maybe_unused)
+			 struct machine *machine __maybe_unused,
+			 struct thread_info *thread __maybe_unused)
 {
 	struct cpu_map_event *map_event = &event->cpu_map;
 	struct cpu_map_entries *cpus;
