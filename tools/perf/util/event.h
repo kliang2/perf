@@ -785,13 +785,15 @@ int perf_event__synthesize_sample(union perf_event *event, u64 type,
 pid_t perf_event__synthesize_comm(struct perf_tool *tool,
 				  union perf_event *event, pid_t pid,
 				  perf_event__handler_t process,
-				  struct machine *machine);
+				  struct machine *machine,
+				  struct thread_info *thread);
 
 int perf_event__synthesize_namespaces(struct perf_tool *tool,
 				      union perf_event *event,
 				      pid_t pid, pid_t tgid,
 				      perf_event__handler_t process,
-				      struct machine *machine);
+				      struct machine *machine,
+				      struct thread_info *thread);
 
 int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 				       union perf_event *event,
@@ -799,7 +801,8 @@ int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 				       perf_event__handler_t process,
 				       struct machine *machine,
 				       bool mmap_data,
-				       unsigned int proc_map_timeout);
+				       unsigned int proc_map_timeout,
+				       struct thread_info *thread);
 
 size_t perf_event__fprintf_comm(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf_mmap(union perf_event *event, FILE *fp);

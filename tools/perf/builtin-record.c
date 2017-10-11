@@ -922,7 +922,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 		tgid = perf_event__synthesize_comm(tool, event,
 						   rec->evlist->workload.pid,
 						   process_synthesized_event,
-						   machine);
+						   machine, NULL);
 		free(event);
 
 		if (tgid == -1)
@@ -942,7 +942,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 		perf_event__synthesize_namespaces(tool, event,
 						  rec->evlist->workload.pid,
 						  tgid, process_synthesized_event,
-						  machine);
+						  machine, NULL);
 		free(event);
 
 		perf_evlist__start_workload(rec->evlist);
