@@ -50,6 +50,7 @@
 #include <signal.h>
 #include <sys/mman.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
 #include <asm/bug.h>
 #include <linux/time64.h>
 
@@ -80,6 +81,7 @@ struct record {
 	bool			timestamp_filename;
 	struct switch_output	switch_output;
 	unsigned long long	samples;
+	struct perf_data_file	*synthesized_file;
 };
 
 static volatile int auxtrace_record__snapshot_started;
@@ -105,6 +107,14 @@ static bool switch_output_time(struct record *rec)
 	       trigger_is_ready(&switch_output_trigger);
 }
 
+static void update_bytes_written(struct record *rec, size_t size)
+{
+	rec->bytes_written += size;
+
+	if (switch_output_size(rec))
+		trigger_hit(&switch_output_trigger);
+}
+
 static int record__write(struct record *rec, void *bf, size_t size)
 {
 	if (perf_data_file__write(rec->session->file, bf, size) < 0) {
@@ -112,10 +122,7 @@ static int record__write(struct record *rec, void *bf, size_t size)
 		return -1;
 	}
 
-	rec->bytes_written += size;
-
-	if (switch_output_size(rec))
-		trigger_hit(&switch_output_trigger);
+	update_bytes_written(rec, size);
 
 	return 0;
 }
@@ -124,10 +131,15 @@ static int process_synthesized_event(struct perf_tool *tool,
 				     union perf_event *event,
 				     struct perf_sample *sample __maybe_unused,
 				     struct machine *machine __maybe_unused,
-				     struct thread_info *thread __maybe_unused)
+				     struct thread_info *thread)
 {
 	struct record *rec = container_of(tool, struct record, tool);
-	return record__write(rec, event, event->header.size);
+
+	if (!perf_singlethreaded && thread)
+		return (perf_data_file__write(&rec->synthesized_file[thread->idx],
+					      event, event->header.size) < 0) ? -1 : 0;
+	else
+		return record__write(rec, event, event->header.size);
 }
 
 static int record__pushfn(void *to, void *bf, size_t size)
@@ -690,6 +702,81 @@ static const struct perf_event_mmap_page *record__pick_pc(struct record *rec)
 	return NULL;
 }
 
+static int record__multithread_synthesize(struct record *rec,
+					  struct machine *machine,
+					  struct perf_tool *tool,
+					  struct record_opts *opts)
+{
+	int i, j, err, nr_thread = sysconf(_SC_NPROCESSORS_ONLN);
+	int fd_from, fd_to;
+	struct stat st;
+
+again:
+	/* multithreading synthesize is only available for cpu monitoring */
+	if (target__has_task(&opts->target) || (nr_thread <= 1))
+		return __machine__synthesize_threads(machine, tool,
+						     &opts->target,
+						     rec->evlist->threads,
+						     process_synthesized_event,
+						     opts->sample_address,
+						     opts->proc_map_timeout,
+						     1);
+
+	rec->synthesized_file = calloc(nr_thread, sizeof(struct perf_data_file));
+	if (rec->synthesized_file == NULL) {
+		pr_debug("Could not do multithread synthesize."
+			 "Roll back to single thread\n");
+		nr_thread = 1;
+		goto again;
+	}
+
+	for (i = 0; i < nr_thread; i++) {
+		if (perf_data_file__open_tmp(&rec->synthesized_file[i])) {
+			/* Roll back if failed to open tmp file */
+			for (j = 0; j < i; j++)
+				perf_data_file__close(&rec->synthesized_file[j]);
+			free(rec->synthesized_file);
+			nr_thread = 1;
+			goto again;
+		}
+	}
+
+	/* now start multithreading */
+	perf_set_multithreaded();
+
+	err = __machine__synthesize_threads(machine, tool, &opts->target,
+					    rec->evlist->threads,
+					    process_synthesized_event,
+					    opts->sample_address,
+					    opts->proc_map_timeout, nr_thread);
+	if (err < 0)
+		goto free;
+
+	fd_to = rec->session->file->fd;
+	for (i = 0; i < nr_thread; i++) {
+		fd_from = rec->synthesized_file[i].fd;
+
+		fstat(fd_from, &st);
+		if (st.st_size == 0)
+			continue;
+		err = copyfile_offset(fd_from, 0, fd_to,
+				      lseek(fd_to, 0, SEEK_END),
+				      st.st_size);
+		if (err < 0)
+			goto free;
+		/* pwrite in copyfile_offset doesn't change the file pointer */
+		lseek(fd_to, 0, SEEK_END);
+		update_bytes_written(rec, st.st_size);
+	}
+free:
+	for (i = 0; i < nr_thread; i++)
+		perf_data_file__close(&rec->synthesized_file[i]);
+	free(rec->synthesized_file);
+	perf_set_singlethreaded();
+
+	return err;
+}
+
 static int record__synthesize(struct record *rec, bool tail)
 {
 	struct perf_session *session = rec->session;
@@ -766,9 +853,7 @@ static int record__synthesize(struct record *rec, bool tail)
 					 perf_event__synthesize_guest_os, tool);
 	}
 
-	err = __machine__synthesize_threads(machine, tool, &opts->target, rec->evlist->threads,
-					    process_synthesized_event, opts->sample_address,
-					    opts->proc_map_timeout, 1);
+	err = record__multithread_synthesize(rec, machine, tool, opts);
 out:
 	return err;
 }
