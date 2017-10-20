@@ -483,6 +483,10 @@ config terms. For example: 'cycles/overwrite/' and 'instructions/no-overwrite/'.
 
 Implies --tail-synthesize.
 
+--num-thread-synthesize::
+The number of threads to run event synthesize.
+By default, the number of threads equals to the online CPU number.
+
 SEE ALSO
 --------
 linkperf:perf-stat[1], linkperf:perf-list[1]

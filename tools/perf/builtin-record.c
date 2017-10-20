@@ -82,6 +82,7 @@ struct record {
 	struct switch_output	switch_output;
 	unsigned long long	samples;
 	struct perf_data_file	*synthesized_file;
+	unsigned int		nr_threads_synthesize;
 };
 
 static volatile int auxtrace_record__snapshot_started;
@@ -707,10 +708,14 @@ static int record__multithread_synthesize(struct record *rec,
 					  struct perf_tool *tool,
 					  struct record_opts *opts)
 {
-	int i, j, err, nr_thread = sysconf(_SC_NPROCESSORS_ONLN);
+	int i, j, err, nr_thread;
 	int fd_from, fd_to;
 	struct stat st;
 
+	if (rec->nr_threads_synthesize == UINT_MAX)
+		nr_thread = sysconf(_SC_NPROCESSORS_ONLN);
+	else
+		nr_thread = rec->nr_threads_synthesize;
 again:
 	/* multithreading synthesize is only available for cpu monitoring */
 	if (target__has_task(&opts->target) || (nr_thread <= 1))
@@ -1530,6 +1535,7 @@ static struct record record = {
 		.mmap2		= perf_event__process_mmap2,
 		.ordered_events	= true,
 	},
+	.nr_threads_synthesize = UINT_MAX,
 };
 
 const char record_callchain_help[] = CALLCHAIN_RECORD_HELP
@@ -1671,6 +1677,8 @@ static struct option __record_options[] = {
 			  "signal"),
 	OPT_BOOLEAN(0, "dry-run", &dry_run,
 		    "Parse options then exit"),
+	OPT_UINTEGER(0, "num-thread-synthesize", &record.nr_threads_synthesize,
+			"number of thread to run event synthesize"),
 	OPT_END()
 };
 
