@@ -139,9 +139,35 @@ int perf_data_file__open(struct perf_data_file *file)
 	return open_file(file);
 }
 
+int perf_data_file__open_tmp(struct perf_data_file *file)
+{
+	int fd;
+
+	if (!file->tmp_path &&
+	    (asprintf(&file->tmp_path, "perf.tmp.XXXXXX") < 0))
+		goto err;
+
+	fd = mkstemp(file->tmp_path);
+	if (fd < 0) {
+		free(file->tmp_path);
+		goto err;
+	}
+
+	file->fd = fd;
+	return 0;
+err:
+	file->tmp_path = NULL;
+	return -1;
+}
+
 void perf_data_file__close(struct perf_data_file *file)
 {
 	close(file->fd);
+	if (file->tmp_path) {
+		unlink(file->tmp_path);
+		free(file->tmp_path);
+		file->tmp_path = NULL;
+	}
 }
 
 ssize_t perf_data_file__write(struct perf_data_file *file,
